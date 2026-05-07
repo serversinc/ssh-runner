@@ -1,0 +1,75 @@
+# SSH Runner Testing Environment
+# Starts an SSH server container that tests on the host machine can connect to
+# 
+# Usage:
+#   1. Start the SSH server: docker compose up -d ssh-server
+#   2. Run tests on host: composer test
+#   3. Stop when done: docker compose down
+
+services:
+  # SSH key generator - generates keys once before other services start
+  ssh-keygen:
+    image: alpine:latest
+    container_name: ssh-keygen
+    volumes:
+      - ./docker/ssh-keys:/keys
+    command: >
+      sh -c "
+        apk add --no-cache openssh-keygen &&
+        if [ ! -f /keys/id_rsa ]; then
+          echo 'Generating SSH keys...' &&
+          ssh-keygen -t rsa -b 4096 -f /keys/id_rsa -N '' -C 'test@ssh-runner' &&
+          chmod 600 /keys/id_rsa &&
+          chmod 644 /keys/id_rsa.pub &&
+          echo 'SSH keys generated in docker/ssh-keys/' &&
+          cat /keys/id_rsa.pub;
+        else
+          echo 'SSH keys already exist';
+        fi
+      "
+
+  # SSH server for integration testing
+  # Accessible from host at localhost:2222
+  ssh-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.ssh-server
+    container_name: ssh-runner-ssh-server
+    hostname: ssh-server
+    ports:
+      - "2222:22"
+    volumes:
+      - ./docker/ssh-keys:/ssh-keys:ro
+    depends_on:
+      ssh-keygen:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "22"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # Optional: Development container with PHP and all dependencies
+  # Useful for debugging or if you prefer running tests in Docker
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ssh-runner-dev
+    volumes:
+      - .:/app
+    environment:
+      - SSH_TEST_HOST=host.docker.internal
+      - SSH_TEST_PORT=2222
+      - SSH_TEST_USER=testuser
+      - SSH_TEST_KEY_PATH=/app/docker/ssh-keys/id_rsa
+    stdin_open: true
+    tty: true
+    command: ["/bin/bash"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  default:
+    name: ssh-test-network

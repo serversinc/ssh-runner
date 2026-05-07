@@ -1,0 +1,44 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile
+docker-compose.yml
+docker-compose.override.yml
+.dockerignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Testing
+.phpunit.result.cache
+.phpunit.cache
+coverage
+
+# Dependencies (will be installed in container)
+vendor
+node_modules
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Documentation (not needed in container)
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE.md
+README.md
+
+# Temporary files
+*.tmp
+*.temp

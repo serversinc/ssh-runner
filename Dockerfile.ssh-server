@@ -1,0 +1,62 @@
+# SSH Server for testing SSH Runner
+# Simple Alpine-based SSH server with key authentication
+
+FROM alpine:latest
+
+# Install OpenSSH server and necessary tools
+RUN apk add --no-cache \
+    openssh-server \
+    openssh-client \
+    netcat-openbsd \
+    sudo \
+    bash
+
+# Create test user
+RUN adduser -D -s /bin/sh testuser && \
+    echo "testuser:testpass" | chpasswd && \
+    mkdir -p /home/testuser/.ssh && \
+    chmod 700 /home/testuser/.ssh
+
+# Configure SSH
+RUN ssh-keygen -A && \
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
+    sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config && \
+    echo "AllowUsers testuser" >> /etc/ssh/sshd_config
+
+# Create entrypoint script that waits for SSH keys
+COPY <<'EOF' /entrypoint.sh
+#!/bin/sh
+set -e
+
+# Wait for SSH keys to be available
+KEY_FILE=/ssh-keys/id_rsa.pub
+MAX_WAIT=30
+WAITED=0
+
+echo "Waiting for SSH keys to be available..."
+while [ ! -f "$KEY_FILE" ]; do
+    if [ $WAITED -ge $MAX_WAIT ]; then
+        echo "Timeout waiting for SSH keys"
+        exit 1
+    fi
+    sleep 1
+    WAITED=$((WAITED + 1))
+done
+
+echo "SSH keys found, setting up authorized_keys..."
+
+# Copy public key to testuser's authorized_keys
+cp "$KEY_FILE" /home/testuser/.ssh/authorized_keys
+chmod 644 /home/testuser/.ssh/authorized_keys
+chown -R testuser:testuser /home/testuser/.ssh
+
+echo "Starting SSH server..."
+exec /usr/sbin/sshd -D
+EOF
+
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 22
+
+ENTRYPOINT ["/entrypoint.sh"]

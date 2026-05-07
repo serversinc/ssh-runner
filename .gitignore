@@ -1,0 +1,38 @@
+# Dependencies
+vendor/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# PHPUnit
+.phpunit.result.cache
+.phpunit.cache/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs and caches
+*.log
+/logs/
+/cache/
+
+# Build artifacts
+/build/
+/coverage/
+.php_cs.cache
+.php-cs-fixer.cache
+
+# Docker
+/docker/ssh-keys/
+*.pem
+*.key
