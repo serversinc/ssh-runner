@@ -1,0 +1,13 @@
+<?php
+
+namespace {{ namespace }};
+
+use Serversinc\SshRunner\Scripts\BaseScript;
+
+class {{ class }} extends BaseScript
+{
+    public function steps(): array
+    {
+        return [];
+    }
+}

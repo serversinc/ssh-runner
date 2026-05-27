@@ -23,7 +23,10 @@ class SshRunnerServiceProvider extends ServiceProvider
             ], 'ssh-runner-migrations');
 
             // Registering package commands.
-            // $this->commands([]);
+            $this->commands([
+                \Serversinc\SshRunner\Console\Commands\MakeSshActionCommand::class,
+                \Serversinc\SshRunner\Console\Commands\MakeSshScriptCommand::class,
+            ]);
         }
     }
 

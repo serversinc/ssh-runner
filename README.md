@@ -152,6 +152,15 @@ $result = SshRunner::pipeline($server)
     ->run(new UpdatePackageList)
     ->run(new InstallPackage('nginx'))
     ->execute();
+
+// Or execute a script directly
+$result = SshRunner::script($server, new DeployWordPressSite(
+    path: '/var/www/example.com',
+    domain: 'example.com',
+    dbName: 'wordpress_example',
+    dbUser: 'wp_example',
+    dbPassword: 'secure-password',
+));
 ```
 
 ## Failure Strategies
@@ -212,6 +221,126 @@ if ($result->success) {
 }
 ```
 
+## Script Execution
+
+Scripts allow you to group multiple related commands into a single action with built-in step-by-step execution, optional rollback per step, and critical/non-critical step handling.
+
+### Creating a Script
+
+Extend `BaseScript` and define your steps:
+
+```php
+use Serversinc\SshRunner\Scripts\BaseScript;
+use Serversinc\SshRunner\Scripts\ScriptStep;
+
+class DeployWordPressSite extends BaseScript
+{
+    public function __construct(
+        private string $path,
+        private string $domain,
+        private string $dbName,
+        private string $dbUser,
+        private string $dbPassword,
+    ) {}
+
+    public function steps(): array
+    {
+        return [
+            new ScriptStep(
+                name: 'Create application directory',
+                command: "mkdir -p {$this->path}",
+                rollback: "rm -rf {$this->path}",
+            ),
+            new ScriptStep(
+                name: 'Download WordPress',
+                command: "cd {$this->path} && wget https://wordpress.org/latest.tar.gz",
+                rollback: "rm -f {$this->path}/latest.tar.gz",
+            ),
+            new ScriptStep(
+                name: 'Extract archive',
+                command: "cd {$this->path} && tar -xzf latest.tar.gz",
+            ),
+            new ScriptStep(
+                name: 'Create database',
+                command: "mysql -e \"CREATE DATABASE IF NOT EXISTS {$this->dbName};\"",
+                rollback: "mysql -e \"DROP DATABASE IF EXISTS {$this->dbName};\"",
+            ),
+            new ScriptStep(
+                name: 'Create database user',
+                command: "mysql -e \"CREATE USER IF NOT EXISTS '{$this->dbUser}'@'localhost' IDENTIFIED BY '{$this->dbPassword}'; GRANT ALL PRIVILEGES ON {$this->dbName}.* TO '{$this->dbUser}'@'localhost'; FLUSH PRIVILEGES;\"",
+                rollback: "mysql -e \"DROP USER IF EXISTS '{$this->dbUser}'@'localhost';\"",
+            ),
+            new ScriptStep(
+                name: 'Set permissions',
+                command: "chown -R www-data:www-data {$this->path}",
+                critical: false, // Non-critical: failure here won't stop the script
+            ),
+        ];
+    }
+
+    public function validate(): void
+    {
+        if (empty($this->path) || empty($this->domain)) {
+            throw new \InvalidArgumentException('Path and domain are required');
+        }
+    }
+}
+```
+
+### Using Scripts in Pipelines
+
+Scripts work seamlessly inside pipelines:
+
+```php
+use SshRunner;
+
+$result = SshRunner::pipeline($server)
+    ->run(new UpdatePackageList)
+    ->script(new DeployWordPressSite(
+        path: '/var/www/example.com',
+        domain: 'example.com',
+        dbName: 'wordpress_example',
+        dbUser: 'wp_example',
+        dbPassword: 'secure-password',
+    ))
+    ->run(new RestartService('nginx'))
+    ->onFailure(FailureStrategy::ROLLBACK)
+    ->execute();
+```
+
+### Executing a Script Directly
+
+Run a script as a single action without a pipeline:
+
+```php
+use SshRunner;
+
+$result = SshRunner::script($server, new DeployWordPressSite(
+    path: '/var/www/example.com',
+    domain: 'example.com',
+    dbName: 'wordpress_example',
+    dbUser: 'wp_example',
+    dbPassword: 'secure-password',
+));
+
+if ($result->success) {
+    echo $result->output;
+} else {
+    echo $result->errorOutput;
+}
+```
+
+### Script Behavior
+
+- **SSH connection reuse** — Scripts automatically enable SSH multiplexing (`ControlMaster=auto`) so all steps share the same underlying TCP connection, avoiding repeated authentication overhead.
+- **Critical steps** (`critical: true`, the default) trigger automatic rollback of all previously completed steps on failure.
+- **Non-critical steps** (`critical: false`) log a failure but continue to the next step.
+- **Step-level rollback** commands are executed in reverse order when a critical step fails or when the pipeline's `ROLLBACK` failure strategy is triggered.
+- **Filesystem state persists** between steps (files created in one step are available in the next).
+- Scripts integrate with the existing logging and failure strategy infrastructure.
+
+> **Note:** While the SSH network connection is reused between steps, each `ScriptStep` still runs in its own shell process. This means environment variables set in one step (e.g. `export VAR=value`) are not available in subsequent steps. If you need to share data between steps, use files on the remote filesystem.
+
 ## Advanced Usage
 
 ### Creating a Connection for Reuse
@@ -245,6 +374,15 @@ $pipeline = SshRunner::pipeline($server);
 
 // Execute a single action
 $result = SshRunner::run($server, new SomeAction());
+
+// Execute a script directly
+$result = SshRunner::script($server, new DeployWordPressSite(
+    path: '/var/www/example.com',
+    domain: 'example.com',
+    dbName: 'wordpress_example',
+    dbUser: 'wp_example',
+    dbPassword: 'secure-password',
+));
 ```
 
 ## Testing

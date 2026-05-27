@@ -3,9 +3,11 @@
 namespace Serversinc\SshRunner;
 
 use Illuminate\Support\Collection;
+use Serversinc\SshRunner\Actions\ExecuteScriptAction;
 use Serversinc\SshRunner\Contracts\SshActionInterface;
 use Serversinc\SshRunner\Contracts\SshServer;
 use Serversinc\SshRunner\Enums\FailureStrategy;
+use Serversinc\SshRunner\Scripts\BaseScript;
 use Serversinc\SshRunner\Models\SshActionLog;
 use Serversinc\SshRunner\Models\SshPipelineLog;
 use Serversinc\SshRunner\Results\ActionResult;
@@ -42,6 +44,11 @@ class SshPipeline
         $this->actions->push($action);
 
         return $this;
+    }
+
+    public function script(BaseScript $script): static
+    {
+        return $this->run(new ExecuteScriptAction($script));
     }
 
     public function execute(): PipelineResult

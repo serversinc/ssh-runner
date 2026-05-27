@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Serversinc\SshRunner;
 
+use Serversinc\SshRunner\Actions\ExecuteScriptAction;
 use Serversinc\SshRunner\Contracts\SshActionInterface;
 use Serversinc\SshRunner\Contracts\SshServer;
 use Serversinc\SshRunner\Results\ActionResult;
+use Serversinc\SshRunner\Scripts\BaseScript;
 use Spatie\Ssh\Ssh;
 
 class SshRunner
@@ -35,5 +37,14 @@ class SshRunner
     public static function run(SshServer $server, SshActionInterface $action): ActionResult
     {
         return SshConnection::for($server)->execute($action);
+    }
+
+    /**
+     * Execute a script on a server.
+     * Shortcut for: SshRunner::connect($server)->execute(new ExecuteScriptAction($script))
+     */
+    public static function script(SshServer $server, BaseScript $script): ActionResult
+    {
+        return static::run($server, new ExecuteScriptAction($script));
     }
 }

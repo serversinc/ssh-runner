@@ -1,0 +1,16 @@
+<?php
+
+namespace {{ namespace }};
+
+use Serversinc\SshRunner\Actions\BaseSshAction;
+use Serversinc\SshRunner\Contracts\SshServer;
+use Serversinc\SshRunner\Results\ActionResult;
+use Spatie\Ssh\Ssh;
+
+class {{ class }} extends BaseSshAction
+{
+    public function handle(SshServer $server, Ssh $ssh): ActionResult
+    {
+        //
+    }
+}
