@@ -15,7 +15,8 @@ class IntegrationTestServer implements SshServer
         private readonly int $port,
         private readonly string $user,
         private readonly ?string $keyPath = null,
-        private readonly ?string $keyContents = null
+        private readonly ?string $keyContents = null,
+        private readonly ?string $password = null,
     ) {}
 
     public static function fromEnvironment(): self
@@ -51,5 +52,10 @@ class IntegrationTestServer implements SshServer
     public function getSshKeyContents(): ?string
     {
         return $this->keyContents;
+    }
+
+    public function getSshPassword(): ?string
+    {
+        return $this->password;
     }
 }

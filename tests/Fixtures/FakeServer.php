@@ -16,6 +16,7 @@ class FakeServer extends Model implements SshServer
         'ssh_user',
         'ssh_key_path',
         'ssh_key_contents',
+        'ssh_password',
     ];
 
     public function getSshHost(): string
@@ -41,5 +42,10 @@ class FakeServer extends Model implements SshServer
     public function getSshKeyContents(): ?string
     {
         return $this->ssh_key_contents;
+    }
+
+    public function getSshPassword(): ?string
+    {
+        return $this->ssh_password;
     }
 }

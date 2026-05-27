@@ -15,4 +15,6 @@ interface SshServer
     public function getSshKeyPath(): ?string;
 
     public function getSshKeyContents(): ?string;
+
+    public function getSshPassword(): ?string;
 }

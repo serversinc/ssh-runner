@@ -16,22 +16,33 @@ class LocalhostSsh extends Ssh
 {
     private array $extraSshOptions = [];
 
-    public function __construct(private readonly string $actualUser, private readonly string $actualHost, private readonly int $actualPort, private readonly string $privateKeyPath)
-    {
+    public function __construct(
+        private readonly string $actualUser,
+        private readonly string $actualHost,
+        private readonly int $actualPort,
+        private readonly ?string $privateKeyPath,
+        private readonly ?string $password = null,
+    ) {
         // Call parent with fake hostname to bypass localhost check
-        parent::__construct($this->actualUser, 'docker-container.local', $this->actualPort);
+        parent::__construct($this->actualUser, 'docker-container.local', $this->actualPort, $this->password);
 
         // Set up SSH options
-        $this->usePrivateKey($this->privateKeyPath);
+        if ($this->privateKeyPath) {
+            $this->usePrivateKey($this->privateKeyPath);
+        }
+
         $this->addExtraOption('-o StrictHostKeyChecking=no');
         $this->addExtraOption('-o UserKnownHostsFile=/dev/null');
 
         // Store the options for later use
         $this->extraSshOptions = [
-            '-i '.$this->privateKeyPath,
             '-o StrictHostKeyChecking=no',
             '-o UserKnownHostsFile=/dev/null',
         ];
+
+        if ($this->privateKeyPath) {
+            array_unshift($this->extraSshOptions, '-i '.$this->privateKeyPath);
+        }
 
         if ($this->actualPort !== 22) {
             $this->extraSshOptions[] = '-p '.$this->actualPort;
@@ -50,9 +61,10 @@ class LocalhostSsh extends Ssh
         $extraOptions = implode(' ', $this->extraSshOptions);
         $target = "{$this->actualUser}@{$this->actualHost}";
 
+        $passwordCommand = $this->getPasswordCommand();
         $delimiter = 'EOF-SPATIE-SSH';
 
-        return "ssh {$extraOptions} {$target} 'bash -se' << '{$delimiter}'".PHP_EOL
+        return "{$passwordCommand}ssh {$extraOptions} {$target} 'bash -se' << '{$delimiter}'".PHP_EOL
             .$commandString.PHP_EOL
             .$delimiter;
     }

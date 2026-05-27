@@ -29,24 +29,33 @@ class SshConnection
         $host = $this->server->getSshHost();
         $port = $this->server->getSshPort();
         $user = $this->server->getSshUser();
+        $password = $this->server->getSshPassword();
+
+        $hasKeyPath = (bool) $this->server->getSshKeyPath();
+        $hasKeyContents = (bool) $this->server->getSshKeyContents();
+        $hasPassword = (bool) $password;
 
         // For localhost connections, use our custom wrapper that forces SSH
         // instead of letting Spatie SSH bypass it
         if (in_array($host, ['localhost', '127.0.0.1'])) {
-            $keyPath = $this->server->getSshKeyPath() ?? $this->writeTempKey($this->server->getSshKeyContents() ?? '');
+            $keyPath = $this->server->getSshKeyPath();
 
-            return new LocalhostSsh($user, $host, $port, $keyPath);
+            if (! $keyPath && $hasKeyContents) {
+                $keyPath = $this->writeTempKey($this->server->getSshKeyContents() ?? '');
+            }
+
+            return new LocalhostSsh($user, $host, $port, $keyPath, $password);
         }
 
-        $ssh = Ssh::create($user, $host)->usePort($port);
+        $ssh = Ssh::create($user, $host, $port, $password);
 
         if ($keyPath = $this->server->getSshKeyPath()) {
             $ssh->usePrivateKey($keyPath);
         } elseif ($keyContents = $this->server->getSshKeyContents()) {
             $tempPath = $this->writeTempKey($keyContents);
             $ssh->usePrivateKey($tempPath);
-        } else {
-            throw new SshConnectionException('No SSH key provided.');
+        } elseif (! $hasPassword) {
+            throw new SshConnectionException('No SSH key or password provided.');
         }
 
         // Add extra SSH options for testing environment
