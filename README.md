@@ -36,6 +36,16 @@ Run the migrations to create the logging tables:
 php artisan migrate
 ```
 
+### Note: UUID / ULID Primary Keys
+
+The package's migration uses `$table->morphs('server')` which creates `server_id` as an `unsignedBigInteger`. If your server model uses UUID or ULID primary keys, create a migration in your application to change the column type:
+
+```php
+Schema::table('ssh_pipeline_logs', function (Blueprint $table) {
+    $table->string('server_id')->change();
+});
+```
+
 ## Basic Usage
 
 ### 1. Implement the SshServer Interface

@@ -58,22 +58,9 @@ class SshConnection
             throw new SshConnectionException('No SSH key or password provided.');
         }
 
-        // Add extra SSH options for testing environment
-        $this->addExtraSshOption($ssh, 'strict_host_checking', '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null');
+        $ssh->disableStrictHostKeyChecking();
 
         return $ssh;
-    }
-
-    /**
-     * Add extra SSH option using reflection
-     */
-    private function addExtraSshOption(Ssh $ssh, string $key, string $value): void
-    {
-        $reflection = new \ReflectionClass($ssh);
-        $property = $reflection->getProperty('extraOptions');
-        $options = $property->getValue($ssh);
-        $options[$key] = $value;
-        $property->setValue($ssh, $options);
     }
 
     private function writeTempKey(string $contents): string
