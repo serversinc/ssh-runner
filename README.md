@@ -81,6 +81,16 @@ class Server extends Model implements SshServer
     {
         return $this->ssh_key_contents;
     }
+
+    public function getSshPassword(): ?string
+    {
+        return $this->ssh_password;
+    }
+
+    public function getSshJumpHost(): ?string
+    {
+        return $this->ssh_jump_host; // e.g. "user@bastion.example.com"
+    }
 }
 ```
 
@@ -211,6 +221,19 @@ if ($run->failed()) {
     }
 }
 ```
+
+## Jump Host / Bastion Support
+
+Route SSH connections through a bastion (jump) host by implementing `getSshJumpHost()` on your server model:
+
+```php
+public function getSshJumpHost(): ?string
+{
+    return $this->ssh_jump_host; // e.g. "deploy@bastion.example.com"
+}
+```
+
+Return `null` to connect directly (no jump host). When a non-null value is returned, `SshConnection` automatically passes it to Spatie SSH's `useJumpHost()` so all pipelines and scripts on that server are routed through the bastion transparently.
 
 ## Single Action Execution
 
