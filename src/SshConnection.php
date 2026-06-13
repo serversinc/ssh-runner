@@ -60,6 +60,10 @@ class SshConnection
 
         $ssh->disableStrictHostKeyChecking();
 
+        if ($jumpHost = $this->server->getSshJumpHost()) {
+            $ssh->useJumpHost($jumpHost);
+        }
+
         return $ssh;
     }
 

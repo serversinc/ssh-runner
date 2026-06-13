@@ -48,4 +48,9 @@ class FakeServer extends Model implements SshServer
     {
         return $this->ssh_password;
     }
+
+    public function getSshJumpHost(): ?string
+    {
+        return null;
+    }
 }

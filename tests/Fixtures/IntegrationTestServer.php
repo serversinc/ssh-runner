@@ -58,4 +58,9 @@ class IntegrationTestServer implements SshServer
     {
         return $this->password;
     }
+
+    public function getSshJumpHost(): ?string
+    {
+        return null;
+    }
 }
