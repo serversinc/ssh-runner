@@ -49,11 +49,14 @@ class SshConnection
 
         $ssh = Ssh::create($user, $host, $port, $password);
 
+        $resolvedKeyPath = null;
+
         if ($keyPath = $this->server->getSshKeyPath()) {
+            $resolvedKeyPath = $keyPath;
             $ssh->usePrivateKey($keyPath);
         } elseif ($keyContents = $this->server->getSshKeyContents()) {
-            $tempPath = $this->writeTempKey($keyContents);
-            $ssh->usePrivateKey($tempPath);
+            $resolvedKeyPath = $this->writeTempKey($keyContents);
+            $ssh->usePrivateKey($resolvedKeyPath);
         } elseif (! $hasPassword) {
             throw new SshConnectionException('No SSH key or password provided.');
         }
@@ -61,10 +64,52 @@ class SshConnection
         $ssh->disableStrictHostKeyChecking();
 
         if ($jumpHost = $this->server->getSshJumpHost()) {
-            $ssh->useJumpHost($jumpHost);
+            $this->applyJumpHost($ssh, $jumpHost, $user, $resolvedKeyPath);
         }
 
         return $ssh;
+    }
+
+    /**
+     * Spatie\Ssh::useJumpHost() emits a bare `-J {host}`, which OpenSSH only
+     * uses to route the connection — it does NOT carry -i/the resolved
+     * key/password through to that hop. The jump hop then falls back to
+     * whatever SSH identity happens to be ambiently available (an agent, or
+     * a matching ~/.ssh/config entry) on the machine running this process,
+     * which silently breaks unless that's been configured out-of-band.
+     *
+     * Instead, route the jump hop through an explicit ProxyCommand carrying
+     * the SAME key already resolved for the primary connection, so a single
+     * key (authorized on both the jump host and the destination) is enough —
+     * no per-machine SSH config required.
+     *
+     * $jumpHost may be "host" or "user@host"; a bare host defaults to the
+     * primary connection's user.
+     */
+    private function applyJumpHost(Ssh $ssh, string $jumpHost, string $defaultUser, ?string $keyPath): void
+    {
+        if ($keyPath === null) {
+            // No key resolved (password-only auth) — fall back to the
+            // previous behaviour; there's no clean way to carry a password
+            // through a ProxyCommand hop without additional tooling.
+            $ssh->useJumpHost($jumpHost);
+
+            return;
+        }
+
+        [$jumpUser, $jumpHostname] = str_contains($jumpHost, '@')
+            ? explode('@', $jumpHost, 2)
+            : [$defaultUser, $jumpHost];
+
+        // IdentitiesOnly=yes: without it, an ambient ssh-agent offering other
+        // keys first can exhaust the jump host's MaxAuthTries before this
+        // key is ever tried, even though it's the one that's actually
+        // authorized.
+        $proxyCommand = 'ssh -i '.escapeshellarg($keyPath)
+            .' -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+            .' -W %h:%p '.$jumpUser.'@'.$jumpHostname;
+
+        $ssh->addExtraOption('-o ProxyCommand='.escapeshellarg($proxyCommand));
     }
 
     private function writeTempKey(string $contents): string

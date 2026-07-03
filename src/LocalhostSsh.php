@@ -21,10 +21,13 @@ class LocalhostSsh extends Ssh
         private readonly string $actualHost,
         private readonly int $actualPort,
         private readonly ?string $privateKeyPath,
-        private readonly ?string $password = null,
+        ?string $password = null,
     ) {
-        // Call parent with fake hostname to bypass localhost check
-        parent::__construct($this->actualUser, 'docker-container.local', $this->actualPort, $this->password);
+        // Call parent with fake hostname to bypass localhost check. Not
+        // promoting $password to our own property: Ssh already declares it
+        // (non-readonly), and redeclaring it readonly here is what PHP
+        // rejects — "Cannot redeclare non-readonly property ... as readonly".
+        parent::__construct($this->actualUser, 'docker-container.local', $this->actualPort, $password);
 
         // Set up SSH options
         if ($this->privateKeyPath) {

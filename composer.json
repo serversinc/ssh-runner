@@ -1,6 +1,6 @@
 {
     "name": "serversinc/ssh-runner",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "description": "Actions-based SSH Runner",
     "keywords": [
         "serversinc",
